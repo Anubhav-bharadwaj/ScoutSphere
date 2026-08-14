@@ -1,0 +1,51 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: scoutsphere
+          POSTGRES_PASSWORD: scoutsphere
+          POSTGRES_DB: scoutsphere
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U scoutsphere"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://scoutsphere:scoutsphere@localhost:5432/scoutsphere
+      JWT_SECRET_KEY: ci-test-secret-key-not-for-production
+      REDIS_URL: redis://localhost:6379/0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Lint
+        run: ruff check backend
+
+      - name: Run Alembic migrations
+        run: cd backend && alembic upgrade head
+
+      - name: Run tests
+        run: pytest backend/tests -v

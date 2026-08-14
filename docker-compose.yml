@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: scoutsphere-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-scoutsphere}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scoutsphere}
+      POSTGRES_DB: ${POSTGRES_DB:-scoutsphere}
+    ports:
+      - "5432:5432"
+    volumes:
+      - scoutsphere_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scoutsphere}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: scoutsphere-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - scoutsphere_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  chromadb:
+    image: chromadb/chroma:0.5.5
+    container_name: scoutsphere-chromadb
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - scoutsphere_chroma_data:/chroma/chroma
+
+volumes:
+  scoutsphere_postgres_data:
+  scoutsphere_redis_data:
+  scoutsphere_chroma_data:
