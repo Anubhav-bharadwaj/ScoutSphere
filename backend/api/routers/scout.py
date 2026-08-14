@@ -31,6 +31,6 @@ async def create_seed(url: str, domain: str, db: AsyncSession = Depends(get_db))
         await db.commit()
         await db.refresh(seed)
         return seed
-    except Exception as e:
+    except Exception:
         await db.rollback()
         raise HTTPException(status_code=400, detail="Seed URL already exists or error occurred.")

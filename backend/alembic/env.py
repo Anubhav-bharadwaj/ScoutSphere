@@ -10,13 +10,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from alembic import context
-from sqlalchemy import pool
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from alembic import context  # noqa: E402
+from sqlalchemy import pool  # noqa: E402
+from sqlalchemy.ext.asyncio import async_engine_from_config  # noqa: E402
 
-from backend.core.config import settings
-from backend.core.database import Base
-from backend.models import *  # noqa: F401,F403  (ensures all models are registered)
+from backend.core.config import settings  # noqa: E402
+from backend.core.database import Base  # noqa: E402
+from backend.models import *  # noqa: E402,F401,F403  (ensures all models are registered)
 
 config = context.config
 

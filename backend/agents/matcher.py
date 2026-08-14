@@ -68,9 +68,12 @@ async def generate_matches_for_opportunity(opp: Opportunity, db: AsyncSession):
         
         # Generate Justification 
         reasons = []
-        if semantic_score > 0.7: reasons.append("Strong skill alignment.")
-        if deadline_score == 1.0: reasons.append("Approaching deadline.")
-        if eligibility_score == 0.0: reasons.append("May not meet eligibility requirements.")
+        if semantic_score > 0.7:
+            reasons.append("Strong skill alignment.")
+        if deadline_score == 1.0:
+            reasons.append("Approaching deadline.")
+        if eligibility_score == 0.0:
+            reasons.append("May not meet eligibility requirements.")
         reason_text = " ".join(reasons) if reasons else "Moderate match based on profile."
         
         # Upsert match

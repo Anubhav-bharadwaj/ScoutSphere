@@ -1,12 +1,10 @@
 import json
-import os
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import JSONB
 
 from backend.core.database import get_db
 from backend.core.config import settings
@@ -83,7 +81,7 @@ async def update_profile(
         vector_store.vectorize_and_store_profile(str(current_user.id), skills)
         profile.vector_sync_status = "SYNCED"
         await db.commit()
-    except Exception as e:
+    except Exception:
         profile.vector_sync_status = "FAILED"
         await db.commit()
     

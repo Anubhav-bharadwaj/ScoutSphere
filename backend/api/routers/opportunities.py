@@ -1,15 +1,13 @@
 import uuid
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.database import get_db
-from backend.api.deps import get_current_user
 from backend.models.user import User
 from backend.models.match import Match
-from backend.models.opportunity import Opportunity
 from pydantic import BaseModel
 from datetime import datetime
 
