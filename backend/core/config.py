@@ -32,8 +32,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # OpenAI (used from Phase 2 onward)
-    OPENAI_API_KEY: str | None = None
+    # Groq (used for the Evaluator agent)
+    GROQ_API_KEY: str | None = None
 
     # Resume storage
     RESUME_STORAGE_DIR: str = "./storage/resumes"
