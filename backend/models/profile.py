@@ -24,7 +24,7 @@ class Profile(Base):
         nullable=False,
     )
 
-    skills: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    skills: Mapped[list] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     education: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     preferences_json: Mapped[dict] = mapped_column(
         JSONB, nullable=False, server_default=text("'{}'::jsonb")

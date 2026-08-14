@@ -28,5 +28,7 @@ async def root() -> dict:
     return {"service": "ScoutSphere API", "status": "running"}
 
 # --- Routers are mounted here starting Batch 2 ---
-# from backend.api.routes import auth
-# app.include_router(auth.router, prefix="/auth", tags=["auth"])
+from backend.api.routers import auth, profiles
+
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(profiles.router, prefix="/users", tags=["users"])

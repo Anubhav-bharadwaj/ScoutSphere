@@ -50,7 +50,7 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """Cached settings singleton — avoids re-parsing .env on every import."""
-    return Settings()
+    return Settings()  # type: ignore
 
 
 settings = get_settings()
