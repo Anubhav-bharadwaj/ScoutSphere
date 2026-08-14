@@ -48,4 +48,4 @@ jobs:
         run: cd backend && alembic upgrade head
 
       - name: Run tests
-        run: pytest backend/tests -v
+        run: PYTHONPATH=. pytest backend/tests -v
