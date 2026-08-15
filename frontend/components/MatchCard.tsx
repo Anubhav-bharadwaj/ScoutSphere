@@ -1,8 +1,10 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { Calendar, Briefcase, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Calendar, Briefcase, ChevronRight, CheckCircle2, FileText, X, Building2 } from 'lucide-react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
 
 // The data structure based on the API response
 type Opportunity = {
@@ -18,29 +20,91 @@ type MatchData = {
   id: string;
   score: number;
   reason: string;
+  strong_areas?: string[];
+  missing_skills?: string[];
   opportunity: Opportunity;
 };
 
 export default function MatchCard({ match }: { match: MatchData }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+  const [isTailoring, setIsTailoring] = useState(false);
+  const [tailoredResume, setTailoredResume] = useState<string | null>(null);
+  const [isFetchingIntel, setIsFetchingIntel] = useState(false);
+  const [intel, setIntel] = useState<any | null>(null);
+  const router = useRouter();
+  
   const opp = match.opportunity;
   const scorePercent = Math.round(match.score * 100);
   
-  // Fake chart data for MVP display of score breakdown (Skills 40, Eligibility 25, Location 15, Exp 10, Deadline 10)
-  // In a real scenario, the backend would return the individual component scores.
+  // Dynamic chart data using actual missing score part
   const chartData = [
-    { name: 'Skills', value: 40 * match.score, color: '#3B82F6' },
-    { name: 'Eligibility', value: 25 * match.score, color: '#8B5CF6' },
-    { name: 'Location', value: 15 * match.score, color: '#10B981' },
-    { name: 'Experience', value: 10 * match.score, color: '#F59E0B' },
-    { name: 'Deadline', value: 10 * match.score, color: '#EF4444' },
-    { name: 'Missing', value: 100 - scorePercent, color: '#1F2937' } // The missing score part
+    { name: 'Match', value: scorePercent, color: scorePercent >= 80 ? '#10B981' : scorePercent >= 60 ? '#F59E0B' : '#EF4444' },
+    { name: 'Missing', value: 100 - scorePercent, color: '#1F2937' }
   ];
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-emerald-400";
     if (score >= 60) return "text-amber-400";
     return "text-rose-400";
+  };
+
+  const handleApply = async () => {
+    try {
+      setIsApplying(true);
+      const token = localStorage.getItem("scoutsphere_token");
+      const res = await fetch(`http://localhost:8000/applications/auto-fill/${opp.id}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/applications/co-pilot/${data.id}`);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleTailorResume = async () => {
+    try {
+      setIsTailoring(true);
+      const token = localStorage.getItem("scoutsphere_token");
+      const res = await fetch(`http://localhost:8000/opportunities/${opp.id}/tailor-resume`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTailoredResume(data.markdown);
+      } else {
+        alert("Failed to tailor resume. Please make sure you have uploaded a resume in your Profile.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsTailoring(false);
+    }
+  };
+
+  const handleFetchIntel = async () => {
+    try {
+      setIsFetchingIntel(true);
+      const token = localStorage.getItem("scoutsphere_token");
+      const res = await fetch(`http://localhost:8000/opportunities/${opp.id}/intel`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIntel(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsFetchingIntel(false);
+    }
   };
 
   return (
@@ -80,15 +144,30 @@ export default function MatchCard({ match }: { match: MatchData }) {
               </div>
             </div>
             
-            <div className="pt-2">
-              <a 
-                href={match.opportunity.source_url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center bg-white text-black font-semibold px-6 py-2.5 rounded-lg hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.2)]"
+            <div className="pt-2 flex flex-wrap gap-3">
+              <button 
+                onClick={handleApply}
+                disabled={isApplying || isTailoring || isFetchingIntel}
+                className="inline-flex items-center justify-center bg-white text-black font-semibold px-6 py-2.5 rounded-lg hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.2)] disabled:opacity-50"
               >
-                Apply Now
-              </a>
+                {isApplying ? "Starting Co-Pilot..." : "Auto-Fill Application"}
+              </button>
+              <button 
+                onClick={handleTailorResume}
+                disabled={isApplying || isTailoring || isFetchingIntel}
+                className="inline-flex items-center justify-center gap-2 bg-transparent border border-white/20 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-white/5 transition-colors disabled:opacity-50"
+              >
+                <FileText className="w-4 h-4" />
+                {isTailoring ? "Tailoring..." : "Tailor Resume"}
+              </button>
+              <button 
+                onClick={handleFetchIntel}
+                disabled={isApplying || isTailoring || isFetchingIntel}
+                className="inline-flex items-center justify-center gap-2 bg-transparent border border-white/20 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-white/5 transition-colors disabled:opacity-50"
+              >
+                <Building2 className="w-4 h-4" />
+                {isFetchingIntel ? "Fetching Intel..." : "Company Intel"}
+              </button>
             </div>
           </div>
 
@@ -151,7 +230,31 @@ export default function MatchCard({ match }: { match: MatchData }) {
                 <p className="text-gray-300 leading-relaxed text-sm">
                   {match.reason || "We determined this is a strong match based on your skills and preferences."}
                 </p>
-                {opp.requirements && Object.keys(opp.requirements).length > 0 && (
+                {match.strong_areas && match.strong_areas.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-white/5">
+                    <h4 className="text-xs font-semibold text-emerald-500 uppercase tracking-wider mb-3">Strong Areas</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {match.strong_areas.map((skill, idx) => (
+                        <span key={idx} className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-xs font-medium text-emerald-400">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {match.missing_skills && match.missing_skills.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-white/5">
+                    <h4 className="text-xs font-semibold text-rose-500 uppercase tracking-wider mb-3">Missing Skills to Improve</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {match.missing_skills.map((skill, idx) => (
+                        <span key={idx} className="px-3 py-1 bg-rose-500/10 border border-rose-500/20 rounded-full text-xs font-medium text-rose-400">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!match.strong_areas && opp.requirements && Object.keys(opp.requirements).length > 0 && (
                   <div className="mt-4 pt-4 border-t border-white/5">
                     <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Key Requirements</h4>
                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -169,6 +272,106 @@ export default function MatchCard({ match }: { match: MatchData }) {
           </div>
         </div>
       </div>
+
+      {/* Tailored Resume Modal */}
+      {tailoredResume && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151518] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-white/5">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-400" />
+                Tailored Resume
+              </h2>
+              <button 
+                onClick={() => setTailoredResume(null)}
+                className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 prose prose-invert max-w-none">
+              <ReactMarkdown>{tailoredResume}</ReactMarkdown>
+            </div>
+            
+            <div className="p-6 border-t border-white/5 flex justify-end gap-3 bg-black/20">
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(tailoredResume);
+                  alert("Copied to clipboard!");
+                }}
+                className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white font-medium hover:bg-white/10 transition-colors"
+              >
+                Copy
+              </button>
+              <button 
+                onClick={() => setTailoredResume(null)}
+                className="px-4 py-2 bg-blue-600 rounded-lg text-white font-medium hover:bg-blue-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Company Intel Modal */}
+      {intel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151518] border border-white/10 rounded-2xl w-full max-w-3xl flex flex-col shadow-2xl max-h-[90vh]">
+            <div className="flex items-center justify-between p-6 border-b border-white/5">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-purple-400" />
+                Company Intelligence Dossier
+              </h2>
+              <button 
+                onClick={() => setIntel(null)}
+                className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-2">Company Overview</h3>
+                <p className="text-gray-300 leading-relaxed bg-white/5 p-4 rounded-xl border border-white/5">{intel.overview}</p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-2">Estimated Culture</h3>
+                <p className="text-gray-300 leading-relaxed bg-white/5 p-4 rounded-xl border border-white/5">{intel.culture}</p>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-2">Salary Insights</h3>
+                <p className="text-emerald-400 font-medium bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20">{intel.salary_insights}</p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-3">Simulated Recent News</h3>
+                <ul className="space-y-3">
+                  {intel.recent_news.map((news: string, idx: number) => (
+                    <li key={idx} className="flex gap-3 text-gray-300 bg-white/5 p-4 rounded-xl border border-white/5">
+                      <ChevronRight className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                      <span>{news}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-white/5 flex justify-end bg-black/20">
+              <button 
+                onClick={() => setIntel(null)}
+                className="px-6 py-2 bg-purple-600 rounded-lg text-white font-medium hover:bg-purple-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

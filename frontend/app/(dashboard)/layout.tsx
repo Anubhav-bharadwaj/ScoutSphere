@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { Compass, User, Settings, CheckCircle } from "lucide-react";
+import { Compass, User, Settings, CheckCircle, Briefcase } from "lucide-react";
+import SidebarNav from "@/components/SidebarNav";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -12,27 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </h1>
         </div>
         
-        <nav className="flex-1 px-4 space-y-2 mt-4">
-          <Link href="/opportunities" className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/10 text-white font-medium border border-white/5 shadow-sm">
-            <Compass className="w-5 h-5 text-blue-400" />
-            Discovery
-          </Link>
-          <Link href="/matches" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
-            <CheckCircle className="w-5 h-5" />
-            My Matches
-          </Link>
-          <Link href="/profile" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
-            <User className="w-5 h-5" />
-            Profile
-          </Link>
-        </nav>
-        
-        <div className="p-4 border-t border-gray-800">
-          <Link href="/settings" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
-            <Settings className="w-5 h-5" />
-            Settings
-          </Link>
-        </div>
+        <SidebarNav />
       </aside>
 
       {/* Main Content Area */}

@@ -38,3 +38,11 @@ body {
   border: 1px solid var(--color-glass-border);
   border-radius: 0.75rem;
 }
+
+.prose h1 { font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; color: #fff; }
+.prose h2 { font-size: 1.25rem; font-weight: bold; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #fff; }
+.prose h3 { font-size: 1.125rem; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; color: #ddd; }
+.prose p { margin-bottom: 1rem; color: #ccc; line-height: 1.6; }
+.prose ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; color: #ccc; }
+.prose li { margin-bottom: 0.25rem; }
+.prose strong { color: #fff; font-weight: 600; }
