@@ -16,7 +16,7 @@ from groq import AsyncGroq
 from backend.core.config import settings
 
 router = APIRouter()
-groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY) if settings.GROQ_API_KEY else None
 
 class OpportunityInfo(BaseModel):
     title: str
@@ -178,6 +178,9 @@ async def refine_application_answer(
         "introductory phrases (like 'Here is a rewritten version...'), or markdown formatting."
     )
     
+    if not groq_client:
+        raise HTTPException(status_code=500, detail="Groq API key not configured")
+        
     response = await groq_client.chat.completions.create(
         messages=[{"role": "user", "content": prompt}],
         model="llama-3.3-70b-versatile",

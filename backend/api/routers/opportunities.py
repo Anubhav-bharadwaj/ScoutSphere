@@ -18,7 +18,7 @@ import json
 from fastapi import HTTPException
 
 router = APIRouter()
-groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY) if settings.GROQ_API_KEY else None
 
 class OpportunityResponse(BaseModel):
     id: uuid.UUID
@@ -122,6 +122,9 @@ async def tailor_resume(
         f"ORIGINAL RESUME TEXT:\n{profile.resume_text}"
     )
     
+    if not groq_client:
+        raise HTTPException(status_code=500, detail="Groq API key not configured")
+        
     try:
         response = await groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
