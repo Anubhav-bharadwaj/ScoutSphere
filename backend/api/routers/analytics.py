@@ -5,7 +5,6 @@ from sqlalchemy import select, func
 from backend.core.database import get_db
 from backend.models.user import User
 from backend.models.application import Application
-from backend.models.profile import Profile
 from pydantic import BaseModel
 
 router = APIRouter()

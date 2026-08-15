@@ -154,5 +154,5 @@ async def _run_form_filler_async(application_id: str):
                 if error_record:
                     error_record.workflow_state = "ERROR"
                     await db.commit()
-            except Exception as inner_e:
+            except Exception:
                 pass

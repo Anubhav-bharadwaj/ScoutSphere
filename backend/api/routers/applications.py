@@ -12,8 +12,6 @@ from backend.models.application import Application
 from backend.models.opportunity import Opportunity
 from backend.tasks.scout_tasks import run_form_filler_pipeline
 from pydantic import BaseModel
-from datetime import datetime
-import json
 from groq import AsyncGroq
 from backend.core.config import settings
 
