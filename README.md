@@ -400,7 +400,7 @@ ScoutSphere/
 
 # 👨‍💻 Contributors
 
-Built as part of the **Sipher Capstone Project**.
+Built as part of the **IBM Project**.
 
 - Anubhav Bharadwaj
 - ScoutSphere Team
