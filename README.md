@@ -1,422 +1,238 @@
-# 🚀 ScoutSphere
+# ScoutSphere
 
 <div align="center">
 
-### Autonomous Multi-Agent Opportunity Discovery & Matching Platform
+<img src="https://img.shields.io/badge/Status-In%20Development-orange" alt="Status" />
+<img src="https://img.shields.io/badge/Phase-1%20of%205-blueviolet" alt="Phase" />
+<img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python" />
+<img src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
+<img src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white" alt="Next.js" />
+<img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker" />
+<img src="https://img.shields.io/badge/License-MIT-green" alt="License" />
 
-*Scout smarter. Apply faster. Never miss an opportunity.*
+<h3>An autonomous multi-agent opportunity discovery & application engine</h3>
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi)]()
-[![Next.js](https://img.shields.io/badge/Next.js-Frontend-black?logo=next.js)]()
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-336791?logo=postgresql)]()
-[![Redis](https://img.shields.io/badge/Redis-Queue-DC382D?logo=redis)]()
-[![ChromaDB](https://img.shields.io/badge/ChromaDB-Vector%20Store-orange)]()
-[![Celery](https://img.shields.io/badge/Celery-Task%20Queue-37814A?logo=celery)]()
+<p><em>ScoutSphere is a personalized AI scout that navigates the web to find internships and hackathons, evaluates them against your profile, and assists you in applying — with a mandatory human-in-the-loop review before anything is ever submitted.</em></p>
 
 </div>
 
----
+> ⚠️ **This project is under active development as a semester-length capstone build.** Phase 1 (foundation, auth, profile persistence, infra) is implemented and functional; the autonomous scouting pipeline, semantic matching, and application co-pilot from later phases are in progress. See [Project status](#-project-status) below for exactly what works today.
 
-## 🌟 Overview
+## ✨ What ScoutSphere does (vision)
 
-ScoutSphere is an AI-powered opportunity discovery platform that automatically scouts the web for:
+Students and early-career professionals lose hours every week manually checking Devpost, company career pages, and university boards for internships and hackathons — and still miss deadlines or apply to roles they're not eligible for. ScoutSphere is designed to close that loop end-to-end:
 
-- 🏆 Hackathons
-- 💼 Internships
-- 🎓 Scholarships
-- 🚀 Fellowships
-- 💰 Grants
-- 🌍 Competitions
+- **Autonomous Scouting**: Background agents crawl predefined seed URLs on a schedule, extract listings from dynamically rendered pages, and convert the DOM into clean Markdown for LLM parsing.
+- **AI Evaluation Engine**: An LLM chain (GPT-4o-mini) extracts structured opportunity data (title, deadline, requirements) and scores it against a vector-embedded user profile via cosine similarity across five weighted factors — Skills, Eligibility, Location, Experience, and Deadline Urgency.
+- **Personalized Discovery Dashboard**: Curated, match-scored opportunities surface on a Tinder-style feed instead of a fragmented, manual search.
+- **Form-Filler Co-Pilot**: A Playwright-driven agent maps profile data onto real application forms, then **pauses for mandatory human review** — the system never submits on autopilot.
+- **Notifications**: Daily/weekly digest emails surface high-match, high-urgency opportunities the user hasn't seen yet.
 
-Instead of manually searching dozens of websites, ScoutSphere continuously discovers opportunities, analyzes them using AI agents, and ranks them according to each user's profile.
+## 🧭 Project status
 
----
+Built in phases, following the project's own Implementation Plan. Current state:
 
-## 🎯 The Problem
+| Phase | Scope | Status |
+| --- | --- | --- |
+| **Phase 1** | FastAPI foundation, JWT auth, PostgreSQL schema + Alembic migrations, Redis/Celery infra, resume upload & parsing, ChromaDB profile vectorization, onboarding/auth UI, Docker sandbox spike, CI | ✅ Implemented |
+| **Phase 2** | Planner / Browser / Evaluator agents, scouting pipeline, `agent_tasks` state machine execution | 🚧 In progress (scaffolding present: `backend/agents/`, `backend/tasks/`) |
+| **Phase 3** | Match scoring UI, Discovery Dashboard, AI Match Analysis view | 🚧 UI scaffolding only |
+| **Phase 4** | Form-Filler agent, side-by-side Co-Pilot review UI, application tracking Kanban | ⏳ Not started |
+| **Phase 5** | Observability, digest emails, deployment, hardening | ⏳ Not started |
 
-Students and early-career professionals spend countless hours:
+This README documents the system as a whole (per the project's SRS/PRD/TRD), but treat anything not marked ✅ above as architecture-in-progress, not a working feature yet.
 
-- Searching multiple platforms
-- Comparing eligibility criteria
-- Tracking deadlines
-- Finding opportunities relevant to their skills
+## 🧠 Architecture overview
 
-Most opportunities are discovered too late or missed entirely.
+```mermaid
+flowchart TD
+  U[User] --> F[Next.js Frontend<br/>frontend/app]
+  F --> API[FastAPI Backend<br/>backend/api]
 
----
+  subgraph Auth & Profile [Phase 1 — Implemented]
+    API --> AUTH[JWT Auth<br/>routers/auth.py]
+    API --> PROF[Profile & Resume Upload<br/>routers/profiles.py]
+    PROF --> PARSE[Resume Parser<br/>core/parser.py]
+    PARSE --> VEC[ChromaDB Vectorization<br/>core/vectorstore.py]
+  end
 
-## 💡 The Solution
+  subgraph Agent Engine [Phase 2 — In Progress]
+    API --> SCOUT[Scout Trigger<br/>routers/scout.py]
+    SCOUT --> Q[(Redis Queue)]
+    Q --> W[Celery Worker]
+    W --> PLAN[Planner Agent]
+    PLAN --> BROW[Browser Agent<br/>Playwright]
+    BROW --> D2M[DOM → Markdown]
+    D2M --> EVAL[Evaluator Agent<br/>LLM Extraction]
+    EVAL --> MATCH[Matcher<br/>Cosine Similarity]
+  end
 
-ScoutSphere uses an autonomous multi-agent pipeline that:
+  subgraph Persistence
+    AUTH --> PG[(PostgreSQL)]
+    PROF --> PG
+    SCOUT --> PG
+    MATCH --> PG
+    VEC --> CHROMA[(ChromaDB)]
+  end
+```
 
-### 🔍 Scouts Opportunities
+## 🧩 Core components
 
-Automatically crawls trusted sources and discovers opportunities.
+| Area | Purpose | Key files |
+| --- | --- | --- |
+| **FastAPI app** | App entrypoint, CORS, router mounting, health checks | [backend/api/main.py](backend/api/main.py) |
+| **JWT authentication** | Register/login, password hashing, access & refresh tokens | [backend/api/routers/auth.py](backend/api/routers/auth.py), [backend/core/security.py](backend/core/security.py) |
+| **Profile & resume** | Resume upload, PDF parsing, profile persistence | [backend/api/routers/profiles.py](backend/api/routers/profiles.py), [backend/core/parser.py](backend/core/parser.py) |
+| **Vector store** | Embeds resume/profile data into ChromaDB for semantic matching | [backend/core/vectorstore.py](backend/core/vectorstore.py) |
+| **Database models** | SQLAlchemy models mirroring the Backend & Database Schema doc | [backend/models/](backend/models) |
+| **Migrations** | Alembic schema history | [backend/alembic/versions/](backend/alembic/versions) |
+| **Agent engine** *(in progress)* | Planner, Browser (Playwright), Evaluator, Matcher agents | [backend/agents/](backend/agents) |
+| **DOM-to-Markdown spike** | Technical spike converting rendered HTML to LLM-ready Markdown | [backend/scripts/dom_to_markdown.py](backend/scripts/dom_to_markdown.py) |
+| **Background jobs** | Celery app, beat schedule, scouting task definitions | [backend/core/celery_app.py](backend/core/celery_app.py), [backend/worker/](backend/worker), [backend/tasks/](backend/tasks) |
+| **Playwright sandbox** | Isolated Docker environment for headless browsing | [backend/docker/Dockerfile.playwright](backend/docker/Dockerfile.playwright) |
+| **Frontend app** | Auth, onboarding, dashboard shell (Next.js App Router) | [frontend/app/](frontend/app) |
+| **UI components** | Glassmorphic design system components (Stitch-inspired tokens) | [frontend/components/](frontend/components) |
 
-### 🧠 Understands Requirements
+## 🛠 Tech stack
 
-Extracts structured information including:
+- **Backend**: Python 3.11+, FastAPI, Uvicorn, Pydantic v2, SQLAlchemy 2.0 (async)
+- **Database**: PostgreSQL (relational), ChromaDB (vector store), Alembic (migrations)
+- **Auth**: JWT (python-jose), bcrypt password hashing (passlib)
+- **Background Jobs**: Celery + Redis (Celery Beat for scheduled scouting)
+- **Agent Engine**: Playwright (headless browsing), Groq / OpenAI GPT-4o-mini (planned for Evaluator LLM chain)
+- **Resume Parsing**: pypdf
+- **Frontend**: Next.js 16 (App Router), React 19, Tailwind CSS v4, Recharts, Lucide Icons
+- **Testing**: pytest, pytest-asyncio, httpx
+- **DevOps**: Docker Compose (Postgres, Redis, ChromaDB), GitHub Actions CI
 
-- Title
-- Deadline
-- Eligibility
-- Requirements
-- Application Links
-
-### 🎯 Matches Opportunities
-
-Compares opportunity requirements against user profiles using:
-
-- Vector embeddings
-- AI-powered similarity scoring
-- Profile intelligence
-
-### 📊 Ranks Opportunities
-
-Generates personalized match scores and explanations.
-
----
-
-# 🏗 Architecture
+## 📁 Repository layout
 
 ```text
-┌─────────────────────────────┐
-│       User Profile          │
-└─────────────┬───────────────┘
-              │
-              ▼
-┌─────────────────────────────┐
-│       ChromaDB Vector       │
-│         Embeddings          │
-└─────────────┬───────────────┘
-              │
-              ▼
-┌─────────────────────────────┐
-│      Matching Engine        │
-└─────────────┬───────────────┘
-              │
-              ▼
-┌─────────────────────────────┐
-│    Discovery Dashboard      │
-└─────────────────────────────┘
-
-
-        ▲
-        │
-        │
-┌─────────────────────────────┐
-│       Evaluator Agent       │
-└─────────────▲───────────────┘
-              │
-┌─────────────────────────────┐
-│       Browser Agent         │
-└─────────────▲───────────────┘
-              │
-┌─────────────────────────────┐
-│       Planner Agent         │
-└─────────────▲───────────────┘
-              │
-┌─────────────────────────────┐
-│        Seed URLs            │
-└─────────────────────────────┘
+.
+├── backend/
+│   ├── agents/            # Planner, Browser, Evaluator, Matcher (Phase 2)
+│   ├── alembic/            # Migration environment and version history
+│   ├── api/
+│   │   └── routers/        # auth, profiles, scout, opportunities
+│   ├── core/                # Settings, DB session, security, parser, vectorstore, Celery app
+│   ├── docker/              # Playwright sandbox Dockerfile
+│   ├── models/               # SQLAlchemy ORM models (users, profiles, agent_tasks, ...)
+│   ├── schemas/               # Pydantic request/response schemas
+│   ├── scripts/                 # DOM-to-Markdown technical spike
+│   ├── tasks/                    # Celery task definitions (scouting)
+│   ├── tests/                     # pytest suite
+│   ├── worker/                     # Celery beat schedule & config
+│   └── requirements.txt
+├── frontend/
+│   ├── app/
+│   │   ├── (dashboard)/            # Opportunities, matches, profile, settings
+│   │   ├── auth/login/               # Auth screen
+│   │   └── onboarding/                 # Resume upload / preferences wizard
+│   └── components/                       # Shared UI components (GlassCard, Button, Input, MatchCard)
+├── .github/workflows/                       # CI pipeline
+├── docker-compose.yml                        # Postgres, Redis, ChromaDB (local dev infra)
+└── .env.example
 ```
 
----
+## ⚙️ Prerequisites
 
-# 🤖 Multi-Agent Pipeline
+- **Python 3.11+**
+- **Node.js 18+** and **npm**
+- **Docker Desktop** (or Docker Engine + Compose) for Postgres/Redis/ChromaDB
+- *Optional*: an OpenAI or Groq API key for later phases (not required for Phase 1)
 
-## Planner Agent
+## 🔐 Environment variables
 
-Responsible for:
+Copy [.env.example](.env.example) to `.env` in the project root and fill in real values (never commit `.env`):
 
-- Managing Seed URLs
-- Selecting crawl targets
-- Scheduling scouting runs
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | **Yes** | Async PostgreSQL connection string |
+| `JWT_SECRET_KEY` | **Yes** | Signing key for access/refresh tokens |
+| `REDIS_URL` | **Yes** | Redis connection for Celery broker/backend |
+| `CHROMA_HOST` / `CHROMA_PORT` | **Yes** | ChromaDB connection for profile embeddings |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Optional | Access token lifetime (default: `30`) |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Optional | Refresh token lifetime (default: `7`) |
+| `RESUME_STORAGE_DIR` | Optional | Local storage path for uploaded resumes |
+| `RESUME_ENCRYPTION_KEY` | Optional | Fernet key for encrypting resume files at rest |
+| `OPENAI_API_KEY` | Optional | Used by the Evaluator agent from Phase 2 onward |
+| `BACKEND_CORS_ORIGINS` | Optional | Allowed frontend origins (default: `["http://localhost:3000"]`) |
 
----
+## ▶️ Local setup
 
-## Browser Agent
-
-Responsible for:
-
-- Crawling websites
-- Rendering SPAs
-- DOM extraction
-- HTML → Markdown conversion
-
----
-
-## Evaluator Agent
-
-Responsible for:
-
-- Parsing extracted content
-- Identifying opportunities
-- Extracting structured data
-- Generating clean JSON output
-
----
-
-## Matcher Agent
-
-Responsible for:
-
-- Opportunity scoring
-- Semantic similarity search
-- Personalized recommendations
-
----
-
-# ✨ Features
-
-## Phase 1 — Foundation & Infrastructure
-
-- FastAPI Backend
-- PostgreSQL Database
-- Alembic Migrations
-- JWT Authentication
-- Redis
-- Celery Setup
-- ChromaDB Integration
-- Next.js Frontend
-
----
-
-## Phase 2 — Scouting Engine
-
-- Seed URL Management
-- Opportunity Discovery
-- Browser Automation
-- DOM Extraction
-- Structured Opportunity Storage
-- Celery Background Jobs
-
----
-
-## Phase 3 — AI Matching
-
-- User Profile Embeddings
-- Opportunity Embeddings
-- Similarity Search
-- Match Scoring Engine
-- Discovery Dashboard
-- Match Explanations
-- Opportunity Recommendations
-
----
-
-# 🖥 Discovery Dashboard
-
-ScoutSphere provides a personalized opportunity feed with:
-
-- Match Score Analysis
-- Opportunity Details
-- AI-generated Recommendations
-- Profile-aware Ranking
-- Smart Filtering
-
----
-
-# 🛠 Tech Stack
-
-## Backend
-
-- FastAPI
-- SQLAlchemy
-- PostgreSQL
-- Alembic
-- Celery
-- Redis
-- ChromaDB
-
-## Frontend
-
-- Next.js 14
-- TypeScript
-- Tailwind CSS
-- Recharts
-
-## AI / Agents
-
-- Playwright
-- Sentence Transformers
-- ChromaDB
-- OpenAI / Groq Compatible
-
----
-
-# 🚀 Getting Started
-
-## Clone Repository
+### 1) Start infra (Postgres, Redis, ChromaDB)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ScoutSphere.git
-cd ScoutSphere
+docker compose up -d postgres redis chromadb
 ```
 
-## Backend Setup
+### 2) Backend API
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r backend/requirements.txt
 
-source .venv/bin/activate
-# Windows
-.venv\Scripts\activate
-
-pip install -r requirements.txt
-```
-
----
-
-## Environment Variables
-
-Create a `.env` file:
-
-```env
-DATABASE_URL=postgresql://scoutsphere:password@localhost:5432/scoutsphere
-
-REDIS_URL=redis://localhost:6379/0
-
-JWT_SECRET_KEY=super_secret_key
-
-OPENAI_API_KEY=your_api_key
-```
-
----
-
-## Start Infrastructure
-
-```bash
-docker compose up -d
-```
-
----
-
-## Run Migrations
-
-```bash
 alembic -c backend/alembic.ini upgrade head
+uvicorn backend.api.main:app --reload --port 8000
 ```
 
----
+- **API Base**: `http://localhost:8000`
+- **Health Check**: `http://localhost:8000/health`
+- **Swagger Docs**: `http://localhost:8000/docs`
 
-## Start Backend
-
-```bash
-uvicorn backend.api.main:app --reload
-```
-
-Swagger Docs:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
----
-
-## Start Frontend
+### 3) Frontend
 
 ```bash
 cd frontend
-
 npm install
-
 npm run dev
 ```
 
-Frontend:
+The app runs at `http://localhost:3000`.
 
-```text
-http://localhost:3000
+### 4) Celery worker *(Phase 2, optional for now)*
+
+```bash
+celery -A backend.core.celery_app worker --loglevel=info
 ```
 
----
+## 🧪 Testing
 
-# 📂 Project Structure
-
-```text
-ScoutSphere/
-│
-├── backend/
-│   ├── agents/
-│   ├── api/
-│   ├── core/
-│   ├── models/
-│   ├── schemas/
-│   ├── tasks/
-│   └── alembic/
-│
-├── frontend/
-│   ├── app/
-│   ├── components/
-│   └── lib/
-│
-├── docker/
-│
-├── docs/
-│
-└── README.md
+```bash
+pytest backend/tests -v
+ruff check backend
 ```
 
----
+CI runs both automatically on every pull request — see [.github/workflows/backend-ci.yml](.github/workflows/backend-ci.yml).
 
-# 🗺 Roadmap
+## 🔗 API overview (current)
 
-### ✅ Phase 1 — Foundation
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/health` | Server health check |
+| `POST` | `/auth/register` | Create a new user account |
+| `POST` | `/auth/login` | Authenticate and receive JWT access/refresh tokens |
+| `PUT` | `/users/me/profile` | Upload resume, trigger parsing and ChromaDB vector sync |
+| `POST` | `/scout/trigger` | Enqueue a scouting task *(Phase 2 — scaffolded)* |
+| `GET` | `/scout/opportunities` | List scouted opportunities *(Phase 2 — scaffolded)* |
+| `POST` | `/scout/seeds` | Register a seed URL for scouting *(Phase 2 — scaffolded)* |
+| `GET` | `/opportunities/matches` | Get match-scored opportunities for the user *(Phase 3 — scaffolded)* |
 
-- Authentication
-- Database
-- Infrastructure
-- CI/CD
+## 🗺 Roadmap
 
-### ✅ Phase 2 — Scouting Engine
+- [x] Phase 1 — Foundation: auth, schema, profile/resume pipeline, infra, CI
+- [ ] Phase 2 — Core agent & scouting pipeline (Planner, Browser, Evaluator)
+- [ ] Phase 3 — AI matching & Discovery Dashboard UI
+- [ ] Phase 4 — Application co-pilot & human-in-the-loop review
+- [ ] Phase 5 — Observability, notifications, deployment
 
-- Planner Agent
-- Browser Agent
-- Evaluator Agent
+Full detail lives in the project's Implementation Plan, PRD, TRD, and SRS documents.
 
-### ✅ Phase 3 — Matching Engine
+## 🤝 Contributing
 
-- Vector Search
-- Match Scoring
-- Discovery Dashboard
+This is a solo capstone-style build in active development. Issues and suggestions are welcome via GitHub Issues.
 
-### 🚧 Phase 4 — AI Co-Pilot Workspace
+## 📄 License
 
-- Application Assistant
-- Resume Tailoring
-- Cover Letter Generation
-- Human-in-the-Loop Review
-
-### 🔮 Future
-
-- Email Notifications
-- Auto-Apply Agent
-- Interview Preparation
-- Opportunity Tracking
-- Mobile App
-
----
-
-# 👨‍💻 Contributors
-
-Built as part of the **IBM Project**.
-
-- Anubhav Bharadwaj
-- ScoutSphere Team
-
----
-
-# 📜 License
-
-MIT License
-
----
-
-<div align="center">
-
-### ⭐ If you like ScoutSphere, give it a star!
-
-*Discover opportunities before everyone else.*
-
-</div>
+MIT — see [LICENSE](LICENSE).
