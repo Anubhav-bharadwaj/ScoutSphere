@@ -28,9 +28,12 @@ async def root() -> dict:
     return {"service": "ScoutSphere API", "status": "running"}
 
 # --- Routers are mounted here starting Batch 2 ---
-from backend.api.routers import auth, profiles, scout, opportunities  # noqa: E402
+from backend.api.routers import auth, profiles, scout, opportunities, applications, analytics, roadmap  # noqa: E402
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(profiles.router, prefix="/users", tags=["users"])
 app.include_router(scout.router, prefix="/scout", tags=["scout"])
 app.include_router(opportunities.router, prefix="/opportunities", tags=["opportunities"])
+app.include_router(applications.router, prefix="/applications", tags=["applications"])
+app.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
+app.include_router(roadmap.router, prefix="/roadmap", tags=["roadmap"])

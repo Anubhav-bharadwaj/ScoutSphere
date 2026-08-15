@@ -1,28 +1,25 @@
-import sys
-import asyncio
-from playwright.sync_api import sync_playwright
+import httpx
+from bs4 import BeautifulSoup
 
-def fetch_markdown(url: str) -> str:
-    """Fetch a URL using Playwright and extract the inner text."""
-    # Playwright REQUIRES the ProactorEventLoop to spawn subprocesses on Windows.
-    # We must temporarily override the global policy (which we set to Selector in scout_tasks.py) 
-    # before Playwright spins up its own internal loop in this background thread.
-    if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy()) # type: ignore
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        try:
-            # wait_until="domcontentloaded" is faster, but "networkidle" ensures SPAs load
-            # Changed to domcontentloaded to prevent timeout on heavily active pages
-            page.goto(url, wait_until="domcontentloaded", timeout=15000)
+async def fetch_markdown(url: str) -> str:
+    """Fetch a URL using httpx and extract the inner text using BeautifulSoup."""
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            # We add a generic user agent so we don't get instantly blocked
+            response = await client.get(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            })
+            response.raise_for_status()
             
-            # Extract plain text content
-            text = page.evaluate("document.body.innerText")
+            # Parse HTML and extract text
+            soup = BeautifulSoup(response.text, "html.parser")
+            
+            # Remove scripts and styles
+            for script in soup(["script", "style", "noscript"]):
+                script.extract()
+                
+            text = soup.get_text(separator=" ", strip=True)
             return text
-        except Exception as e:
-            print(f"Browser error for {url}: {e}")
-            return ""
-        finally:
-            browser.close()
+    except Exception as e:
+        print(f"Fetch error for {url}: {e}")
+        return ""

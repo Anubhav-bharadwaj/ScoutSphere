@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from backend.models.profile import Profile
+    from backend.models.application import Application
 
 class User(Base):
     __tablename__ = "users"
@@ -35,6 +36,9 @@ class User(Base):
     )
     profile: Mapped["Profile"] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
+    applications: Mapped[list["Application"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
     )
 
 

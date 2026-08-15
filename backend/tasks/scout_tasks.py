@@ -13,8 +13,13 @@ from backend.agents.evaluator import extract_opportunity
 from backend.agents.matcher import generate_matches_for_opportunity
 from backend.core.vectorstore import vector_store
 from backend.models.opportunity import Opportunity
+from backend.models.application import Application
+from backend.models.user import User
+from backend.agents.form_filler import generate_form_payload
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 import traceback
+import uuid
 
 @celery_app.task
 def run_scout_pipeline():
@@ -35,8 +40,8 @@ async def _run_pipeline_async():
         for url in urls:
             # 2. Browser Agent: Crawl URLs and extract Markdown
             print(f"Crawling {url}...")
-            # Run Playwright in a separate thread to avoid Windows Event Loop conflicts
-            markdown = await asyncio.to_thread(fetch_markdown, url)
+            # Run Playwright natively async
+            markdown = await fetch_markdown(url)
             
             if not markdown:
                 continue
@@ -82,3 +87,72 @@ async def _run_pipeline_async():
                     await db.rollback()
                     print(f"Failed to save opportunity from {url}: {e}")
                     traceback.print_exc()
+
+@celery_app.task
+def run_form_filler_pipeline(application_id: str):
+    """
+    Background task to map user profile data to a job application form.
+    """
+    print(f"Starting Form-Filler for Application {application_id}")
+    asyncio.run(_run_form_filler_async(application_id))
+    return "Form-Filler finished"
+
+async def _run_form_filler_async(application_id: str):
+    try:
+        app_uuid = uuid.UUID(application_id)
+    except ValueError:
+        print(f"Invalid UUID: {application_id}")
+        return
+
+    async with AsyncSessionLocal() as db:
+        try:
+            # Fetch application with relations
+            result = await db.execute(
+                select(Application)
+                .where(Application.id == app_uuid)
+                .options(
+                    selectinload(Application.user).selectinload(User.profile),
+                    selectinload(Application.opportunity)
+                )
+            )
+            app_record = result.scalar_one_or_none()
+            
+            if not app_record:
+                print(f"Application {application_id} not found.")
+                return
+
+            # 1. Update state to FORM_FILLING
+            app_record.workflow_state = "FORM_FILLING"
+            await db.commit()
+            
+            # 2. Run Form Filler Agent
+            print("Calling Groq to generate form payload...")
+            
+            # We run this in a thread because Groq API call is synchronous
+            payload = await asyncio.to_thread(
+                generate_form_payload,
+                app_record.user.profile,
+                app_record.opportunity,
+                app_record.user.email
+            )
+            
+            # 3. Update payload and pause for USER_REVIEW
+            app_record.form_payload = payload
+            app_record.workflow_state = "USER_REVIEW"
+            await db.commit()
+            print("Successfully drafted answers and paused for User Review.")
+            
+        except Exception as e:
+            await db.rollback()
+            print(f"Failed to generate form payload: {e}")
+            traceback.print_exc()
+            
+            # Attempt to set workflow_state to ERROR so UI doesn't hang
+            try:
+                result = await db.execute(select(Application).where(Application.id == app_uuid))
+                error_record = result.scalar_one_or_none()
+                if error_record:
+                    error_record.workflow_state = "ERROR"
+                    await db.commit()
+            except Exception as inner_e:
+                pass

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, String, Float, text
-from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID
+from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.core.database import Base
@@ -26,6 +26,8 @@ class Match(Base):
     )
     score: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.0")
     reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    strong_areas: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    missing_skills: Mapped[list | None] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=text("CURRENT_TIMESTAMP"), nullable=False

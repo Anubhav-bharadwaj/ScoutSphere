@@ -5,15 +5,16 @@ from sqlalchemy import select
 from backend.core.database import get_db
 from backend.models.seed_url import SeedURL
 from backend.models.opportunity import Opportunity
-from backend.tasks.scout_tasks import run_scout_pipeline
+from backend.tasks.scout_tasks import _run_pipeline_async
 
 router = APIRouter()
 
-@router.post("/trigger", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/trigger", status_code=status.HTTP_200_OK)
 async def trigger_scout():
-    """Manually trigger the scout pipeline via Celery."""
-    run_scout_pipeline.delay()
-    return {"message": "Scout pipeline triggered successfully"}
+    """Manually trigger the scout pipeline."""
+    # MVP Hack: Run it synchronously so frontend can await it
+    await _run_pipeline_async()
+    return {"message": "Scout pipeline completed successfully"}
 
 @router.get("/opportunities")
 async def get_opportunities(db: AsyncSession = Depends(get_db)):

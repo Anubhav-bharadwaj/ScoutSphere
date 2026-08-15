@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Integer, String, text
+from sqlalchemy import ForeignKey, Integer, String, text, Text
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -42,6 +42,7 @@ class Profile(Base):
     resume_parse_status: Mapped[str] = mapped_column(
         String(50), nullable=False, server_default="PENDING"
     )
+    resume_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     vector_sync_status: Mapped[str] = mapped_column(
         String(50), nullable=False, server_default="PENDING"
     )

@@ -6,6 +6,11 @@ from backend.models.profile import Profile
 from backend.models.opportunity import Opportunity
 from backend.models.match import Match
 from backend.core.vectorstore import vector_store
+from backend.core.config import settings
+from groq import AsyncGroq
+import json
+
+groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY) if settings.GROQ_API_KEY else None
 
 async def generate_matches_for_opportunity(opp: Opportunity, db: AsyncSession):
     """
@@ -76,6 +81,32 @@ async def generate_matches_for_opportunity(opp: Opportunity, db: AsyncSession):
             reasons.append("May not meet eligibility requirements.")
         reason_text = " ".join(reasons) if reasons else "Moderate match based on profile."
         
+        # Enhanced Matching (Strong/Missing Skills via LLM)
+        strong_areas = []
+        missing_skills = []
+        
+        if groq_client:
+            prompt = (
+                "You are an expert AI recruiter. Compare the candidate's skills against the opportunity requirements. "
+                "Return a JSON object with two keys: 'strong_areas' (list of strings, max 3) and 'missing_skills' (list of strings, max 3). "
+                f"Opportunity Requirements: {json.dumps(opp.requirements)}\n"
+                f"Candidate Skills: {json.dumps(profile.skills)}"
+            )
+            try:
+                response = await groq_client.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}],
+                    model="llama-3.3-70b-versatile",
+                    response_format={"type": "json_object"},
+                    temperature=0.3,
+                )
+                content = response.choices[0].message.content
+                if content:
+                    parsed = json.loads(content)
+                    strong_areas = parsed.get("strong_areas", [])
+                    missing_skills = parsed.get("missing_skills", [])
+            except Exception as e:
+                print(f"Error generating LLM match analysis: {e}")
+
         # Upsert match
         existing_result = await db.execute(
             select(Match).where(Match.user_id == profile.user_id, Match.opportunity_id == opp.id)
@@ -85,12 +116,16 @@ async def generate_matches_for_opportunity(opp: Opportunity, db: AsyncSession):
         if existing:
             existing.score = final_score
             existing.reason = reason_text
+            existing.strong_areas = strong_areas
+            existing.missing_skills = missing_skills
         else:
             new_match = Match(
                 user_id=profile.user_id,
                 opportunity_id=opp.id,
                 score=final_score,
-                reason=reason_text
+                reason=reason_text,
+                strong_areas=strong_areas,
+                missing_skills=missing_skills
             )
             db.add(new_match)
             

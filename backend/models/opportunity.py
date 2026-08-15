@@ -2,7 +2,11 @@ import uuid
 from datetime import datetime
 from sqlalchemy import String, text
 from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID, JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.models.application import Application
 
 from backend.core.database import Base
 
@@ -28,3 +32,18 @@ class Opportunity(Base):
         onupdate=text("CURRENT_TIMESTAMP"),
         nullable=False,
     )
+
+    applications: Mapped[list["Application"]] = relationship(
+        back_populates="opportunity", cascade="all, delete-orphan"
+    )
+
+    @property
+    def company(self) -> str:
+        if self.source_url:
+            from urllib.parse import urlparse
+            domain = urlparse(self.source_url).netloc
+            # remove www.
+            if domain.startswith("www."):
+                domain = domain[4:]
+            return domain
+        return "Unknown Company"

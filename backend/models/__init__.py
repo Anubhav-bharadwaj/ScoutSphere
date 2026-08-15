@@ -4,5 +4,6 @@ from backend.models.user import User, UserSession
 from backend.models.opportunity import Opportunity
 from backend.models.match import Match
 from backend.models.seed_url import SeedURL
+from backend.models.application import Application
 
-__all__ = ["User", "UserSession", "Profile", "AgentTask", "Opportunity", "Match", "SeedURL"]
+__all__ = ["User", "UserSession", "Profile", "AgentTask", "Opportunity", "Match", "SeedURL", "Application"]
